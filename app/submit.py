@@ -1,9 +1,19 @@
-import os, uuid
+import os, json, uuid
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
+from google.cloud import tasks_v2
 
 router = APIRouter()
+
+# App auth (mode A)
 AUTH_TOKEN = os.environ.get("SUBMIT_BEARER_TOKEN")
+
+# Cloud Tasks config (env vars must be set in Cloud Run)
+PROJECT = os.environ["GCP_PROJECT"]              # e.g., 842859587314 or project-id
+LOCATION = os.environ["GCP_LOCATION"]            # e.g., us-central1
+QUEUE = os.environ.get("TASKS_QUEUE", "grading-jobs")
+WORKER_URL = os.environ["WORKER_URL"]            # https://cloudhire-ai-api-842859587314.us-central1.run.app/internal/tasks/grade
+TASKS_SA = os.environ["TASKS_SERVICE_ACCOUNT_EMAIL"]  # tasks-caller@<PROJECT>.iam.gserviceaccount.com
 
 class SubmitPayload(BaseModel):
     attempt_id: str
@@ -18,9 +28,31 @@ class SubmitPayload(BaseModel):
 
 @router.post("/v1/grade_jobs/submit")
 async def submit(req: Request, payload: SubmitPayload):
-    if AUTH_TOKEN:
-        if req.headers.get("authorization") != f"Bearer {AUTH_TOKEN}":
-            raise HTTPException(status_code=401, detail="unauthorized")
-    # For bootstrap: no queue yet; just return a stable fake job id
+    # App-level bearer check
+    if AUTH_TOKEN and req.headers.get("authorization") != f"Bearer {AUTH_TOKEN}":
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    # Generate a job_id (later, this will come from Supabase upsert)
     job_id = str(uuid.uuid4())
-    return {"job_id": job_id, "status": "queued (bootstrap)"}
+
+    # Enqueue Cloud Task that will POST to the worker URL with OIDC identity
+    tclient = tasks_v2.CloudTasksClient()
+    parent = tclient.queue_path(PROJECT, LOCATION, QUEUE)
+
+    body = payload.model_dump()
+    body["job_id"] = job_id
+    task = {
+        "http_request": {
+            "http_method": tasks_v2.HttpMethod.POST,
+            "url": WORKER_URL,  # will call: https://cloudhire-ai-api-842859587314.us-central1.run.app/internal/tasks/grade
+            "headers": {"Content-Type": "application/json"},
+            "oidc_token": {
+                "service_account_email": TASKS_SA,
+                "audience": WORKER_URL
+            },
+            "body": json.dumps(body).encode(),
+        }
+    }
+
+    tclient.create_task(parent=parent, task=task)
+    return {"job_id": job_id, "status": "queued"}
