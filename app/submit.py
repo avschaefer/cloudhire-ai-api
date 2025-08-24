@@ -5,14 +5,12 @@ from google.cloud import tasks_v2
 
 router = APIRouter()
 
-# App-level auth (mode A)
 AUTH_TOKEN = os.environ.get("SUBMIT_BEARER_TOKEN")
 
-# Cloud Tasks config (MUST be set as env vars in Cloud Run)
-PROJECT = os.environ["GCP_PROJECT"]                 # e.g., 842859587314  (or your project ID)
-LOCATION = os.environ["GCP_LOCATION"]               # e.g., us-central1
+PROJECT = os.environ["GCP_PROJECT"]               # e.g., 842859587314 or project-id
+LOCATION = os.environ["GCP_LOCATION"]             # e.g., us-central1
 QUEUE = os.environ.get("TASKS_QUEUE", "grading-jobs")
-WORKER_URL = os.environ["WORKER_URL"]               # https://cloudhire-ai-api-842859587314.us-central1.run.app/internal/tasks/grade
+WORKER_URL = os.environ["WORKER_URL"]             # https://cloudhire-ai-api-842859587314.us-central1.run.app/internal/tasks/grade
 TASKS_SA = os.environ["TASKS_SERVICE_ACCOUNT_EMAIL"]  # 842859587314-compute@developer.gserviceaccount.com
 
 class SubmitPayload(BaseModel):
@@ -32,6 +30,7 @@ async def submit(req: Request, payload: SubmitPayload):
         raise HTTPException(status_code=401, detail="unauthorized")
 
     job_id = str(uuid.uuid4())
+
     tclient = tasks_v2.CloudTasksClient()
     parent = tclient.queue_path(PROJECT, LOCATION, QUEUE)
 
@@ -41,7 +40,7 @@ async def submit(req: Request, payload: SubmitPayload):
     task = {
         "http_request": {
             "http_method": tasks_v2.HttpMethod.POST,
-            "url": WORKER_URL,  # calls your Cloud Run worker
+            "url": WORKER_URL,
             "headers": {"Content-Type": "application/json"},
             "oidc_token": {
                 "service_account_email": TASKS_SA,
