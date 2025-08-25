@@ -58,23 +58,26 @@ async def submit(req: Request, payload: SubmitPayload):
     body = payload.model_dump()
     body["job_id"] = job_id
 
+    # Define base for audience (root service URL, no path)
+    BASE_URL = WORKER_URL.rsplit('/', 2)[0]  # Dynamically strip /internal/tasks/grade → https://...run.app
+
     try:
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(PROJECT, LOCATION, QUEUE)
         task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST,
-                "url": WORKER_URL,
+                "url": WORKER_URL,  # Full path for invocation
                 "headers": {"Content-Type": "application/json"},
                 "oidc_token": {
                     "service_account_email": TASKS_SA,
-                    "audience": WORKER_URL,
+                    "audience": BASE_URL,  # Root URL for OIDC audience
                 },
                 "body": json.dumps(body).encode(),
             }
         }
         client.create_task(parent=parent, task=task)
-
+    
     except NotFound as e:
         raise HTTPException(status_code=500, detail=f"Queue not found: {PROJECT}/{LOCATION}/{QUEUE}") from e
     except PermissionDenied as e:
