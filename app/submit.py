@@ -63,19 +63,11 @@ async def submit(req: Request, payload: SubmitPayload):
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(PROJECT, LOCATION, QUEUE)
 
-        # Construct base URL for audience (scheme + netloc only)
-        parsed_url = urlparse(WORKER_URL)
-        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-
         task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST,
                 "url": WORKER_URL,  # Full URL for invocation
                 "headers": {"Content-Type": "application/json"},
-                "oidc_token": {
-                    "service_account_email": TASKS_SA,
-                    "audience": base_url,  # Base URL without path
-                },
                 "body": json.dumps(body).encode(),
             }
         }
