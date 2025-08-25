@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:24px}
+  h1{font-size:18px;margin-bottom:10px}
+  h2{font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:3px}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{border:1px solid #ddd;padding:6px;text-align:left;vertical-align:top}
+  small{color:#666}
+  .overall{margin:10px 0;padding:8px;border:1px solid #ddd;background:#fafafa}
+</style>
+</head>
+<body>
+  <h1>Graded Report</h1>
+  <div class="overall">
+    <b>Attempt:</b> {{ attempt_id }}<br/>
+    <b>Overall Score:</b> {{ '%.2f'|format(overall.score) }} ({{ overall.band }})<br/>
+    {% if overall.notes %}<b>Notes:</b> {{ overall.notes }}{% endif %}
+  </div>
+
+  {% set current_section = None %}
+  {% for r in results %}
+    {% if r.section != current_section %}
+      {% if not loop.first %}</table>{% endif %}
+      <h2>Section: {{ r.section if r.section else 'Unspecified' }}</h2>
+      <table>
+        <tr><th>Question</th><th>Type</th><th>Score</th><th>Rationale</th></tr>
+      {% set current_section = r.section %}
+    {% endif %}
+    <tr>
+      <td>{{ r.question_id }}</td>
+      <td>{{ r.question_type }}</td>
+      <td>{{ '%.2f'|format(r.score) }}</td>
+      <td>{{ r.rationale }}</td>
+    </tr>
+    {% if loop.last %}</table>{% endif %}
+  {% endfor %}
+
+  <p><small>Generated: {{ generated_at }}</small></p>
+</body>
+</html>
