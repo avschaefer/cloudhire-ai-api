@@ -59,9 +59,6 @@ async def submit(req: Request, payload: SubmitPayload):
     body = payload.model_dump()
     body["job_id"] = job_id
 
-    # Define base for audience (root service URL, no path)
-    BASE_URL = WORKER_URL.rsplit('/', 2)[0]  # Dynamically strip /internal/tasks/grade → https://...run.app
-
     try:
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(PROJECT, LOCATION, QUEUE)
