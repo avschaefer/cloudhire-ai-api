@@ -11,7 +11,7 @@ httpx==0.27.2
 
 # PDF
 jinja2==3.1.4
-weasyprint==61.2
+weasyprint==60.2
 
 # Gemini (official client)
 google-generativeai==0.7.2
