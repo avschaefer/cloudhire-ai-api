@@ -21,12 +21,13 @@ from app.pdf import render_report_pdf
 
 router = APIRouter()
 
-WEBHOOK_HMAC_SECRET = os.getenv("WEBHOOK_HMAC_SECRET")  # optional but recommended
+# Shared HMAC secret for webhook signing (must match Rails AI_WEBHOOK_SECRET)
+AI_WEBHOOK_SECRET = os.getenv("AI_WEBHOOK_SECRET")  # optional but recommended
 
 def _hmac_headers(raw: bytes) -> dict:
-    if not WEBHOOK_HMAC_SECRET:
+    if not AI_WEBHOOK_SECRET:
         return {}
-    sig = hmac.new(WEBHOOK_HMAC_SECRET.encode(), raw, hashlib.sha256).hexdigest()
+    sig = hmac.new(AI_WEBHOOK_SECRET.encode(), raw, hashlib.sha256).hexdigest()
     return {
         "X-Signature": f"sha256={sig}",
         "X-Timestamp": str(int(time.time())),

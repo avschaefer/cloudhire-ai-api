@@ -49,6 +49,7 @@ See `env.example` for complete configuration. Required variables include:
 - **GCP**: `GCP_PROJECT`, `GCP_LOCATION`, `WORKER_URL`
 - **AI**: `GEMINI_API_KEY`, `GEMINI_MODEL`
 - **Security**: `SUBMIT_BEARER_TOKEN`
+- **Webhook Signing (recommended)**: `AI_WEBHOOK_SECRET` (shared with Rails)
 
 ## Architecture
 
