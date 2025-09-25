@@ -13,15 +13,27 @@ def sb() -> Client:
 
 def upsert_job(job_id: str, attempt_id: str, user_id: str, purpose: str, triggered_by: str | None) -> None:
     client = sb()
-    client.table("grade_jobs").upsert({
-        "id": job_id,
-        "attempt_id": attempt_id,
-        "user_id": user_id,
-        "purpose": purpose,
-        "status": "processing",
-        "triggered_by": triggered_by,
-        "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-    }, on_conflict="id").execute()
+    # Check if job already exists for this attempt_id + purpose
+    existing = client.table("grade_jobs").select("id").eq("attempt_id", attempt_id).eq("purpose", purpose).execute()
+    
+    if existing.data:
+        # Job already exists, just update the job_id and reset status
+        client.table("grade_jobs").update({
+            "id": job_id,
+            "status": "processing",
+            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }).eq("attempt_id", attempt_id).eq("purpose", purpose).execute()
+    else:
+        # Create new job
+        client.table("grade_jobs").insert({
+            "id": job_id,
+            "attempt_id": attempt_id,
+            "user_id": user_id,
+            "purpose": purpose,
+            "status": "processing",
+            "triggered_by": triggered_by,
+            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }).execute()
 
 def set_job_status(job_id: str, status: str, **fields) -> None:
     client = sb()
