@@ -1,6 +1,7 @@
 import os, hashlib, time
 from typing import Any, Dict, List
 from supabase import create_client, Client
+from fastapi import HTTPException
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
@@ -14,15 +15,26 @@ def sb() -> Client:
 def upsert_job(job_id: str, attempt_id: str, user_id: str, purpose: str, triggered_by: str | None) -> None:
     client = sb()
     # Check if job already exists for this attempt_id + purpose
-    existing = client.table("grade_jobs").select("id").eq("attempt_id", attempt_id).eq("purpose", purpose).execute()
+    existing = client.table("grade_jobs").select("id, status").eq("attempt_id", attempt_id).eq("purpose", purpose).execute()
     
     if existing.data:
-        # Job already exists, just update the job_id and reset status
-        client.table("grade_jobs").update({
-            "id": job_id,
-            "status": "processing",
-            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }).eq("attempt_id", attempt_id).eq("purpose", purpose).execute()
+        existing_job = existing.data[0]
+        existing_job_id = existing_job["id"]
+        
+        # Check if this job already has results (completed job)
+        has_results = client.table("grade_results").select("job_id").eq("job_id", existing_job_id).limit(1).execute()
+        
+        if has_results.data:
+            # Job already completed with results, don't restart
+            raise HTTPException(status_code=409, detail=f"Job for attempt {attempt_id} already completed")
+        else:
+            # Job exists but no results yet, just update status and use existing job_id
+            client.table("grade_jobs").update({
+                "status": "processing",
+                "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }).eq("id", existing_job_id).execute()
+            # Update the job_id reference to match existing
+            return existing_job_id
     else:
         # Create new job
         client.table("grade_jobs").insert({
@@ -34,6 +46,7 @@ def upsert_job(job_id: str, attempt_id: str, user_id: str, purpose: str, trigger
             "triggered_by": triggered_by,
             "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }).execute()
+        return job_id
 
 def set_job_status(job_id: str, status: str, **fields) -> None:
     client = sb()

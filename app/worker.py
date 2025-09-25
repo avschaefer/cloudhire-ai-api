@@ -56,9 +56,10 @@ async def grade_task(req: Request):
     section_map = payload.get("section_map") or {}
     triggered_by = (payload.get("metadata") or {}).get("triggered_by")
 
-    # Upsert job row: processing
-    upsert_job(job_id=job_id, attempt_id=attempt_id, user_id=user_id,
-               purpose=purpose, triggered_by=triggered_by)
+    # Upsert job row: processing (may return different job_id if job exists)
+    actual_job_id = upsert_job(job_id=job_id, attempt_id=attempt_id, user_id=user_id,
+                               purpose=purpose, triggered_by=triggered_by)
+    job_id = actual_job_id  # Use the actual job_id (existing or new)
 
     try:
         answers = fetch_answers_for_user(user_id)
