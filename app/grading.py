@@ -87,9 +87,48 @@ Return a JSON object with:
             total_input_tokens += getattr(usage, 'prompt_token_count', 0)
             total_output_tokens += getattr(usage, 'candidates_token_count', 0)
 
+        # Check if response was blocked by safety filters
+        raw_text = ""
+        if hasattr(resp, 'candidates') and resp.candidates:
+            candidate = resp.candidates[0]
+            if hasattr(candidate, 'finish_reason') and candidate.finish_reason:
+                if str(candidate.finish_reason) in ['SAFETY', 'RECITATION']:
+                    logger.warning(f"Gemini response blocked for question {a['question_id']}: {candidate.finish_reason}")
+                    # Use fallback scoring for blocked content
+                    score = 0.5
+                    rationale = f"Content blocked by safety filters: {candidate.finish_reason}"
+                    per_q.append({
+                        "question_type": a["question_type"],
+                        "question_id": a["question_id"],
+                        "score": score,
+                        "rationale": rationale,
+                        "tags": ["safety_blocked"]
+                    })
+                    total += score
+                    failed_questions += 1
+                    continue
+            
+            # Try to get response text safely
+            try:
+                raw_text = resp.text or ""
+            except ValueError:
+                # Response has no valid parts, use fallback
+                logger.warning(f"No valid response parts for question {a['question_id']}")
+                score = 0.5
+                rationale = "No valid response from AI (empty or blocked)"
+                per_q.append({
+                    "question_type": a["question_type"],
+                    "question_id": a["question_id"],
+                    "score": score,
+                    "rationale": rationale,
+                    "tags": ["no_response"]
+                })
+                total += score
+                failed_questions += 1
+                continue
+
         # Robust JSON parsing with fallbacks
         js = {}
-        raw_text = resp.text or ""
 
         # Try direct JSON parsing first
         try:
