@@ -62,6 +62,10 @@ async def submit(req: Request, payload: SubmitPayload):
     try:
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(PROJECT, LOCATION, QUEUE)
+        
+        # Extract base URL for OIDC audience
+        parsed_url = urlparse(WORKER_URL)
+        audience = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
         task = {
             "http_request": {
@@ -69,6 +73,10 @@ async def submit(req: Request, payload: SubmitPayload):
                 "url": WORKER_URL,  # Full URL for invocation
                 "headers": {"Content-Type": "application/json"},
                 "body": json.dumps(body).encode(),
+                "oidc_token": {
+                    "service_account_email": TASKS_SA,
+                    "audience": audience
+                }
             }
         }
         client.create_task(parent=parent, task=task)
