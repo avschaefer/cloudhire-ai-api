@@ -45,8 +45,8 @@ def fetch_answers_for_user(user_id: str) -> List[Dict[str, Any]]:
     """
     client = sb()
     res = client.table("user_responses").select(
-        "question_type,question_id,response_text,response_numerical,response_units,updated_at"
-    ).eq("user_id", user_id).order("updated_at", desc=True).execute()
+        "question_type,question_id,response_text,response_numerical,response_units,created_at"
+    ).eq("user_id", user_id).order("created_at", desc=True).execute()
 
     rows = res.data or []
     seen = set()
