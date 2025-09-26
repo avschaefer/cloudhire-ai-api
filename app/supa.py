@@ -109,9 +109,10 @@ def upload_pdf(job_id: str, pdf_bytes: bytes) -> str:
         "content-type": "application/pdf",
         "upsert": "true"
     })
-    sha = hashlib.sha256(pdf_bytes).hexdigest()
-    client.table("artifacts").insert({
-        "job_id": job_id, "kind": "pdf", "storage_path": path,
-        "size_bytes": len(pdf_bytes), "sha256": sha
-    }).execute()
+    # TODO: Create artifacts table in Supabase
+    # sha = hashlib.sha256(pdf_bytes).hexdigest()
+    # client.table("artifacts").insert({
+    #     "job_id": job_id, "kind": "pdf", "storage_path": path,
+    #     "size_bytes": len(pdf_bytes), "sha256": sha
+    # }).execute()
     return path
